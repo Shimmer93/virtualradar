@@ -148,8 +148,11 @@
 					azimuth_angle = atan((x - 0.5f * _width) / f);
 					elevation_angle = atan((y - 0.5f * _height) / f);
 					phase_shift_rx2 = (2 * pi * spacing * sin(azimuth_angle)) / lambda;
-					phase_shift_rx3 = (4 * pi * spacing * sin(azimuth_angle)) / lambda;
-					phase_shift_rx4 = (6 * pi * spacing * sin(azimuth_angle)) / lambda;
+					// phase_shift_rx3 = (4 * pi * spacing * sin(azimuth_angle)) / lambda;
+					// phase_shift_rx4 = (6 * pi * spacing * sin(azimuth_angle)) / lambda;
+					// change to square grid
+					phase_shift_rx4 = (2 * pi * spacing * sin(elevation_angle)) / lambda;
+					phase_shift_rx3 = phase_shift_rx2 + phase_shift_rx4;
 				}
 				else
 				{
