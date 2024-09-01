@@ -7,6 +7,7 @@ from scipy.constants import c
 from scipy.linalg import eigh
 import matplotlib.pyplot as plt
 import argparse
+import datetime
 
 class TCPServer:
     def __init__(self, host, port):
@@ -133,7 +134,7 @@ def main():
     # Parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--host', type=str, default='localhost', help='Host IP address')
-    parser.add_argument('--port', type=int, default=12345, help='Port number')
+    parser.add_argument('--port', type=int, default=55000, help='Port number')
     parser.add_argument('--num_chirps', type=int, default=1, help='Number of chirps')
     parser.add_argument('--num_samples', type=int, default=300, help='Number of samples')
     parser.add_argument('--num_antennas', type=int, default=4, help='Number of antennas')
@@ -167,11 +168,18 @@ def main():
     # Receive data
     while True:
         data = tcp_server.receive_data(args.num_chirps * args.num_samples * args.num_antennas * 4)
+        if not data:
+            break
         data = np.frombuffer(data, dtype=np.float32)
         data = data.reshape(args.num_chirps, args.num_samples, args.num_antennas)
 
         # Process radar signal
         points = radar_processor.process_signal(data)
-        plot_points(points, filename='points.png')
+        filename = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S.png')
+        plot_points(points, filename=filename)
 
+    # Close TCP server
+    tcp_server.close_server()
 
+if __name__ == '__main__':
+    main()
