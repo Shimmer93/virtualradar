@@ -135,8 +135,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--host', type=str, default='localhost', help='Host IP address')
     parser.add_argument('--port', type=int, default=55000, help='Port number')
-    parser.add_argument('--num_chirps', type=int, default=1, help='Number of chirps')
-    parser.add_argument('--num_samples', type=int, default=300, help='Number of samples')
+    parser.add_argument('--num_chirps', type=int, default=1, help='Number of chirps per frame')
+    parser.add_argument('--num_chirps_process', type=int, default=48, help='Number of chirps to process')
+    parser.add_argument('--num_samples', type=int, default=256, help='Number of samples')
     parser.add_argument('--num_antennas', type=int, default=4, help='Number of antennas')
     parser.add_argument('--center_freq', type=float, default=60.5e9, help='Center frequency')
     parser.add_argument('--sample_freq', type=float, default=2e6, help='Sampling frequency')
@@ -166,17 +167,24 @@ def main():
     )
 
     # Receive data
+    data_to_process = np.zeros((args.num_chirps_process, args.num_samples, args.num_antennas))
+    i = 0
     while True:
         data = tcp_server.receive_data(args.num_chirps * args.num_samples * args.num_antennas * 4)
         if not data:
             break
         data = np.frombuffer(data, dtype=np.float32)
         data = data.reshape(args.num_chirps, args.num_samples, args.num_antennas)
+        data_to_process[i:i+args.num_chirps, :, :] = data
 
         # Process radar signal
         points = radar_processor.process_signal(data)
         filename = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S.png')
         plot_points(points, filename=filename)
+
+        i += args.num_chirps
+        if i == args.num_chirps_process:
+            i = 0
 
     # Close TCP server
     tcp_server.close_server()
