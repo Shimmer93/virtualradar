@@ -70,16 +70,16 @@ class RadarSignalProcessor:
             for antenna in range(data.shape[2]):
                 for i in range(self.cfar_num_train + self.cfar_num_guard, data.shape[1] - self.cfar_num_train - self.cfar_num_guard):
                     training_cells = np.concatenate([data[chirp, i - self.cfar_num_train - self.cfar_num_guard:i - self.cfar_num_guard, antenna], data[chirp, i + self.cfar_num_guard + 1:i + self.cfar_num_guard + self.cfar_num_train + 1, antenna]])
-        noise_level = np.mean(training_cells)
-        threshold = self.cfar_threshold * noise_level
-        if data[i] > threshold:
-            cfar_map[i] = data[i]
+                    noise_level = np.mean(training_cells)
+                    threshold = self.cfar_threshold * noise_level
+                    if data[chirp, i, antenna] > threshold:
+                        cfar_map[chirp, i, antenna] = data[chirp, i, antenna]
 
         return cfar_map
     
     def process_signal(self, data):
         # data: num_chirps x num_samples x num_antennas
-        assert data.shape == (self.num_chirps, self.num_samples, self.num_antennas), 'Data shape is incorrect'
+        # assert data.shape == (self.num_chirps_process, self.num_samples, self.num_antennas), f'Data shape is incorrect: {data.shape}'
 
         # Apply FFT to convert time domain to frequency domain
         range_fft = np.fft.fft(data, axis=1)
@@ -114,21 +114,22 @@ class RadarSignalProcessor:
             y = range * np.sin(azimuth_angle) * np.cos(elevation_angle)
             z = range * np.sin(elevation_angle)
 
-            points.append([x, y, z, doppler_speed, intensity])
+            points.append(np.array([x, y, z, doppler_speed, intensity]))
 
         # Convert to numpy array
-        points = np.array(points)
+        points = np.stack(points)
+        print(points.shape)
 
         return points
     
 def plot_points(points, filename='points.png'):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(points[:, 0], points[:, 1], points[:, 2], c=points[:, 4], cmap='viridis')
+    ax.scatter(points[:, 0], points[:, 1], points[:, 2])
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
-    plt.savefig(filename)
+    fig.savefig(filename)
 
 def main():
     # Parse arguments
@@ -177,13 +178,12 @@ def main():
         data = data.reshape(args.num_chirps, args.num_samples, args.num_antennas)
         data_to_process[i:i+args.num_chirps, :, :] = data
 
-        # Process radar signal
-        points = radar_processor.process_signal(data)
-        filename = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S.png')
-        plot_points(points, filename=filename)
-
         i += args.num_chirps
         if i == args.num_chirps_process:
+            # Process radar signal
+            points = radar_processor.process_signal(data_to_process)
+            filename = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S.png')
+            plot_points(points, filename=filename)
             i = 0
 
     # Close TCP server
