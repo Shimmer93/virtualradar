@@ -294,7 +294,7 @@ namespace RosSharp.RosBridgeClient
 
             if (help == true)
             {
-                help = false;
+                help = true;
                 vec1 = new UnityEngine.Vector2[cam.pixelWidth * cam.pixelHeight * samples * chirps];
                 vec2 = new UnityEngine.Vector2[cam.pixelWidth * cam.pixelHeight * samples * chirps];
 
@@ -311,8 +311,9 @@ namespace RosSharp.RosBridgeClient
                 width = Screen.width;
                 height = Screen.height;
 
-                thread = new Thread(Calc);          // create thread for sum calculation
-                thread.Start();                     // start thread for sum calculation
+                // thread = new Thread(Calc);          // create thread for sum calculation
+                // thread.Start();                     // start thread for sum calculation
+                Calc(); // calculate sum of radar simulation data
             }
         }
         #endregion
@@ -474,7 +475,7 @@ namespace RosSharp.RosBridgeClient
 
             if (helpplot == true)
             {
-                helpplot = false;
+                helpplot = true;
               
                 if (optionselection == Option.Unity_and_TCP)
                 {

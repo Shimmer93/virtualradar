@@ -46,6 +46,21 @@ For a detailed instruction on how to install and use Vira on your platform, plea
 - 2021-13-02
   + ViRa has been accepted for publication in the RA-L journal.
 
+## Use in Synthetic Data Collection
+1. Download [Unity 2019.4.8](https://unity.com/cn/releases/editor/whats-new/2019.4.8#installs) and [Unity Hub](https://unity.com/cn/download).
+2. In Unity Hub, go to the "Install" page to "Locate" your Unity installation.
+3. Clone this repo and enter the directory: `git clone https://github.com/Shimmer93/virtualradar.git && cd virtualradar`.
+4. In Unity Hub, go to the "Projects" page to "Add" this repo as a Unity project.
+5. Enter the project and select a scene.
+6. To configure the mmwave radar, click the camera icon in the scene and adjust the parameters under "Screen Space Radar Control Plot (Script)".
+7. To start the data collection:
+   1. In the terminal, run `python main.py <args>` to start the TCP/IP server to receive and process data. Please make the arguments consistent with parameters set in Unity.
+   2. Then in Unity, press `Ctrl+P` or click the "Play" button in the top center to start simulation and the TCP/IP client for data transmission.
+   3. Currently the received data are not saved. To be implemented.
+8. To stop the data collection:
+   1. In Unity, press `Ctrl+P`. There may be lagging within the Unity program.
+   2. The python script will quit automatically after some time due to timeout.
+
 
 ## Reference
 Please cite our RA-L paper if you use this repository in your publications:

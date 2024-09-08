@@ -20,6 +20,7 @@ class TCPServer:
 
     def start_server(self):
         self.tcp_server.bind((self.host, self.port))
+        self.tcp_server.settimeout(self.timeout)
         self.tcp_server.listen(1)
         self.conn, self.addr = self.tcp_server.accept()
         print('Connected by', self.addr)
@@ -42,7 +43,7 @@ class RadarSignalProcessor:
                  sample_freq=2e6, 
                  bandwidth=7e9,
                  dist_antenna=-1,
-                 cfar_num_train=16,
+                 cfar_num_train=8,
                  cfar_num_guard=4,
                  cfar_false_alarm_rate=1e-6,
                 ):
@@ -55,12 +56,13 @@ class RadarSignalProcessor:
         self.dist_antenna = dist_antenna if dist_antenna > 0 else c / (2 * bandwidth)
         self.wavelength = c / self.center_freq
         self.dur_chirp = self.num_samples / self.sample_freq
+        self.framerate = self.num_chirps / self.dur_chirp
         self.lower_freq = self.center_freq - self.bandwidth / 2
-        self.range_res = c / (2 * self.bandwidth)
-        self.doppler_res = 1 / (self.num_chirps * self.dur_chirp)
+        self.range_res = c / (2 * self.bandwidth) # Range resolution, unit: m
+        self.doppler_res = c * (1 / (self.num_chirps * self.dur_chirp)) / self.center_freq # Doppler speed resolution, unit: m/s
 
-        self.cfar_num_train = cfar_num_train
-        self.cfar_num_guard = cfar_num_guard
+        self.cfar_num_train = cfar_num_train // 2
+        self.cfar_num_guard = cfar_num_guard // 2
         self.cfar_threshold = cfar_num_train * (cfar_false_alarm_rate ** (-1 / cfar_num_train) - 1)
 
         self.win_range = hann(self.num_samples)
@@ -124,8 +126,9 @@ class RadarSignalProcessor:
 
         # Apply CFAR to range-doppler map
         range_doppler_map = doppler_fft.sum(axis=2)
-        plot_range_doppler(range_doppler_map, filename=filename)
-        cfar_map = self.cfar(range_doppler_map)
+        positive_range_doppler_map = range_doppler_map[:, range_doppler_map.shape[1]//2:]
+        plot_range_doppler(positive_range_doppler_map, filename=filename)
+        cfar_map = self.cfar(positive_range_doppler_map)
 
         # Detect peaks in CFAR map
         detections = np.argwhere(cfar_map > 0)
@@ -191,16 +194,16 @@ def main():
     parser.add_argument('--host', type=str, default='localhost', help='Host IP address')
     parser.add_argument('--port', type=int, default=55000, help='Port number')
     parser.add_argument('--num_chirps_per_frame', type=int, default=1, help='Number of chirps per frame')
-    parser.add_argument('--num_chirps', type=int, default=48, help='Number of chirps to process')
-    parser.add_argument('--num_samples', type=int, default=256, help='Number of samples')
+    parser.add_argument('--num_chirps', type=int, default=60, help='Number of chirps to process')
+    parser.add_argument('--num_samples', type=int, default=500, help='Number of samples')
     parser.add_argument('--num_antennas', type=int, default=4, help='Number of antennas')
     parser.add_argument('--center_freq', type=float, default=60.5e9, help='Center frequency')
-    parser.add_argument('--sample_freq', type=float, default=2e6, help='Sampling frequency')
+    parser.add_argument('--sample_freq', type=float, default=300000, help='Sampling frequency')
     parser.add_argument('--bandwidth', type=float, default=7e9, help='Bandwidth')
     parser.add_argument('--dist_antenna', type=float, default=-1, help='Distance between antennas')
-    parser.add_argument('--cfar_num_train', type=int, default=16, help='Number of training cells')
-    parser.add_argument('--cfar_num_guard', type=int, default=4, help='Number of guard cells')
-    parser.add_argument('--cfar_false_alarm_rate', type=float, default=1e-6, help='False alarm rate')
+    parser.add_argument('--cfar_num_train', type=int, default=8, help='Number of training cells')
+    parser.add_argument('--cfar_num_guard', type=int, default=2, help='Number of guard cells')
+    parser.add_argument('--cfar_false_alarm_rate', type=float, default=1e-4, help='False alarm rate')
     args = parser.parse_args()
 
     # Initialize TCP server

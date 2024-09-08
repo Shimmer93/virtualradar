@@ -4,7 +4,8 @@ public class FrameByFrameAnimation : MonoBehaviour
 {
     public Animation animation;
     public string animationName;
-    private float frameTime = 0.0f; // The current frame time
+    private int numFrames = 0; // The current frame time
+    private float radarFrameRate = 600.0f; // The frame rate of the radar
 
     void Start()
     {
@@ -13,8 +14,8 @@ public class FrameByFrameAnimation : MonoBehaviour
 
     void Update()
     {
-        frameTime += Time.deltaTime; // Increase the frame time by the time since the last frame
-        animation[animationName].normalizedTime = frameTime / animation[animationName].length; // Set the current time of the animation
+        numFrames++;
+        animation[animationName].time = numFrames / radarFrameRate;
         animation.Sample(); // Update the animation
     }
 }
