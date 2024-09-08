@@ -76,7 +76,7 @@ class RadarSignalProcessor:
     def doppler_fft(self, data):
         if self.use_window:
             data = data * self.win_doppler[:, np.newaxis, np.newaxis]
-        doppler_fft = np.fft.fftshift(np.fft.fft(data, axis=0), axes=0)
+        doppler_fft = np.fft.fftshift(np.abs(np.fft.fft(data, axis=0)), axes=0)
         return doppler_fft
 
     def cfar(self, data):
@@ -110,7 +110,7 @@ class RadarSignalProcessor:
     
     def process_signal(self, data):
         # data: num_chirps x num_samples x num_antennas
-        # assert data.shape == (self.num_chirp, self.num_samples, self.num_antennas), f'Data shape is incorrect: {data.shape}'
+        # assert data.shape == (self.num_chirps, self.num_samples, self.num_antennas), f'Data shape is incorrect: {data.shape}'
 
         # Apply FFT to convert time domain to frequency domain
         print(data)
@@ -119,11 +119,11 @@ class RadarSignalProcessor:
 
         filename = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S.png')
         filename = f'range_fft_{filename}'
-        abs_doppler_fft = np.abs(doppler_fft)
-        abs_doppler_fft = abs_doppler_fft / np.max(abs_doppler_fft)
+        # abs_doppler_fft = np.abs(doppler_fft)
+        # abs_doppler_fft = abs_doppler_fft / np.max(abs_doppler_fft)
 
         # Apply CFAR to range-doppler map
-        range_doppler_map = np.abs(doppler_fft).sum(axis=2)
+        range_doppler_map = doppler_fft.sum(axis=2)
         plot_range_doppler(range_doppler_map, filename=filename)
         cfar_map = self.cfar(range_doppler_map)
 
@@ -169,9 +169,9 @@ def plot_range_doppler(doppler_fft, filename='range_doppler.png'):
     if doppler_fft is None:
         return
     fig, ax = plt.subplots()
-    ax.imshow(np.abs(doppler_fft), aspect='auto', origin='lower', extent=[0, doppler_fft.shape[1], 0, doppler_fft.shape[0]])
-    ax.set_xlabel('Range')
-    ax.set_ylabel('Doppler')
+    ax.imshow(doppler_fft, aspect='auto', extent=[0, doppler_fft.shape[1], -doppler_fft.shape[0]//2, doppler_fft.shape[0]//2])
+    ax.set_xlabel('Range Bins')
+    ax.set_ylabel('Doppler Bins')
     fig.savefig(filename)
 
 def plot_points(points, filename='points.png'):
@@ -209,7 +209,7 @@ def main():
 
     # Initialize radar signal processor
     radar_processor = RadarSignalProcessor(
-        num_chirps=args.num_chirp,
+        num_chirps=args.num_chirps,
         num_samples=args.num_samples,
         num_antennas=args.num_antennas,
         center_freq=args.center_freq,
@@ -222,7 +222,7 @@ def main():
     )
 
     # Receive data
-    data_to_process = np.zeros((args.num_chirp, args.num_samples, args.num_antennas))
+    data_to_process = np.zeros((args.num_chirps, args.num_samples, args.num_antennas))
     i = 0
     while True:
         data = tcp_server.receive_data(args.num_chirps_per_frame * args.num_samples * args.num_antennas * 4)
@@ -233,7 +233,7 @@ def main():
         data_to_process[i:i+args.num_chirps_per_frame, :, :] = data
 
         i += args.num_chirps_per_frame
-        if i == args.num_chirp:
+        if i == args.num_chirps:
             # Process radar signal
             points = radar_processor.process_signal(data_to_process)
             filename = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S.png')
