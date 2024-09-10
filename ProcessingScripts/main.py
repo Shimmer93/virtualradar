@@ -10,6 +10,24 @@ import argparse
 import datetime
 import os
 
+ANTENNA_POSITIONS_DICT = {
+    'minimum': np.array([
+        [0, 0, 0],
+        [1, 0, 0],
+        [1, 0, 1]
+    ]),
+    'iwr6843': np.array([
+        [0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1],
+        [2, 0, 0], [3, 0, 0], [3, 0, 1], [2, 0, 1],
+        [2, 0, 2], [3, 0, 2], [3, 0, 3], [2, 0, 3]
+    ]),
+    'iwr1843': np.array([
+        [0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0], 
+        [4, 0, 0], [5, 0, 0], [6, 0, 0], [7, 0, 0], 
+        [2, 0, 1], [3, 0, 1], [4, 0, 1], [5, 0, 1]
+    ])
+}
+
 class TCPServer:
     def __init__(self, host, port, timeout=120):
         self.host = host
@@ -40,10 +58,11 @@ class RadarSignalProcessor:
                  num_chirps=48, 
                  num_samples=300, 
                  num_antennas=4,
+                 antenna_type=None,
+                 dist_antenna=0.0025,
                  center_freq=60.5e9, 
                  sample_freq=2e6, 
                  bandwidth=7e9,
-                 dist_antenna=-1,
                  cfar_num_train=8,
                  cfar_num_guard=4,
                  cfar_false_alarm_rate=1e-6,
@@ -52,10 +71,11 @@ class RadarSignalProcessor:
         self.num_chirps = num_chirps
         self.num_samples = num_samples
         self.num_antennas = num_antennas
+        self.antenna_positions = ANTENNA_POSITIONS_DICT[antenna_type] if antenna_type is not None else np.zeros((num_antennas, 3))
         self.center_freq = center_freq
         self.sample_freq = sample_freq
         self.bandwidth = bandwidth
-        self.dist_antenna = dist_antenna if dist_antenna > 0 else c / (2 * bandwidth)
+        self.dist_antenna = dist_antenna if dist_antenna > 0 else c / (2 * center_freq)
         self.wavelength = c / self.center_freq
         self.dur_chirp = self.num_samples / self.sample_freq
         self.framerate = self.num_chirps / self.dur_chirp
@@ -83,7 +103,7 @@ class RadarSignalProcessor:
         doppler_fft = np.fft.fftshift(np.abs(np.fft.fft(data, axis=0)), axes=0)
         return doppler_fft
 
-    def cfar(self, data):
+    def cfar_algorithm(self, data):
         # data: num_chirps x num_samples
         assert data.shape[1] > self.cfar_num_train + self.cfar_num_guard, 'Signal length is too short'
         num_train_half = self.cfar_num_train // 2
@@ -99,21 +119,43 @@ class RadarSignalProcessor:
                     cfar_map[i, j] = data[i, j]
 
         return cfar_map
+    
+    def music_algorithm(self, signal, num_sources=1):
+        # Calculate the covariance matrix
+        R = np.dot(signal, signal.conj().T) / signal.shape[1]
 
-    # def cfar_algorithm(self, data):
-    #     assert data.shape[1] > self.cfar_num_train + self.cfar_num_guard, 'Signal length is too short'
+        # Eigen decomposition
+        eigenvalues, eigenvectors = eigh(R)
+        idx = eigenvalues.argsort()[::-1]
+        eigenvalues = eigenvalues[idx]
+        eigenvectors = eigenvectors[:, idx]
 
-    #     cfar_map = np.zeros_like(data)
-    #     for chirp in range(data.shape[0]):
-    #         for antenna in range(data.shape[2]):
-    #             for i in range(self.cfar_num_train + self.cfar_num_guard, data.shape[1] - self.cfar_num_train - self.cfar_num_guard):
-    #                 training_cells = np.concatenate([data[chirp, i - self.cfar_num_train - self.cfar_num_guard:i - self.cfar_num_guard, antenna], data[chirp, i + self.cfar_num_guard + 1:i + self.cfar_num_guard + self.cfar_num_train + 1, antenna]])
-    #                 noise_level = np.mean(training_cells)
-    #                 threshold = self.cfar_threshold * noise_level
-    #                 if data[chirp, i, antenna] > threshold:
-    #                     cfar_map[chirp, i, antenna] = data[chirp, i, antenna]
+        # Select the noise subspace
+        noise_subspace = eigenvectors[:, num_sources:]
 
-    #     return cfar_map
+        # Define the steering vector function
+        def steering_vector(theta, phi):
+            k = 2 * np.pi / self.wavelength  # Assuming wavelength of 3cm (10 GHz frequency)
+            return np.exp(1j * k * (self.antenna_positions[:, 0] * np.sin(theta) * np.cos(phi) +
+                                    self.antenna_positions[:, 1] * np.sin(theta) * np.sin(phi) +
+                                    self.antenna_positions[:, 2] * np.cos(theta)))
+
+        # Search angles
+        theta_vals = np.linspace(-np.pi/2, np.pi/2, 180)
+        phi_vals = np.linspace(-np.pi/2, np.pi/2, 180)
+        P_music = np.zeros((len(theta_vals), len(phi_vals)))
+
+        for i, theta in enumerate(theta_vals):
+            for j, phi in enumerate(phi_vals):
+                sv = steering_vector(theta, phi)
+                P_music[i, j] = 1 / np.abs(np.dot(sv.conj().T, np.dot(noise_subspace, noise_subspace.conj().T).dot(sv)))
+
+        # Find the peak in the MUSIC spectrum
+        max_idx = np.unravel_index(np.argmax(P_music), P_music.shape)
+        azimuth_angle = theta_vals[max_idx[0]]
+        elevation_angle = phi_vals[max_idx[1]]
+
+        return azimuth_angle, elevation_angle
     
     def process_signal(self, data):
         # TODOs:
@@ -139,7 +181,7 @@ class RadarSignalProcessor:
         range_doppler_map = doppler_fft.sum(axis=2)
         positive_range_doppler_map = range_doppler_map[:, range_doppler_map.shape[1]//2:]
         plot_range_doppler(positive_range_doppler_map, filename=filename)
-        cfar_map = self.cfar(positive_range_doppler_map)
+        cfar_map = self.cfar_algorithm(positive_range_doppler_map)
 
         # Detect peaks in CFAR map
         detections = np.argwhere(cfar_map > 0)
@@ -154,9 +196,7 @@ class RadarSignalProcessor:
             doppler_speed = self.doppler_res * doppler_bin
 
             # Calculate angle
-            phase_diffs = np.angle(doppler_fft[doppler_bin, range_bin, :])
-            azimuth_angle = np.arcsin(phase_diffs[1] / (2 * np.pi * self.dist_antenna))
-            elevation_angle = np.arcsin(phase_diffs[2] / (2 * np.pi * self.dist_antenna)) if self.num_antennas > 2 else 0
+            azimuth_angle, elevation_angle = self.music_algorithm(data)
 
             # Calculate intensity
             intensity = cfar_map[doppler_bin, range_bin] 
@@ -216,7 +256,7 @@ def main():
     parser.add_argument('--center_freq', type=float, default=60.5e9, help='Center frequency')
     parser.add_argument('--sample_freq', type=float, default=300000, help='Sampling frequency')
     parser.add_argument('--bandwidth', type=float, default=7e9, help='Bandwidth')
-    parser.add_argument('--dist_antenna', type=float, default=-1, help='Distance between antennas')
+    parser.add_argument('--dist_antenna', type=float, default=0.0025, help='Distance between antennas')
     parser.add_argument('--cfar_num_train', type=int, default=16, help='Number of training cells')
     parser.add_argument('--cfar_num_guard', type=int, default=4, help='Number of guard cells')
     parser.add_argument('--cfar_false_alarm_rate', type=float, default=1e-2, help='False alarm rate')
