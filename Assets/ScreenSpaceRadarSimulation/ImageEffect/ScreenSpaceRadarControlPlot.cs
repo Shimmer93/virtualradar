@@ -275,6 +275,8 @@ namespace RosSharp.RosBridgeClient
             mat.SetInt("_height", cam.pixelHeight);
             mat.SetInt("_chirpsNumber", chirps);
             mat.SetInt("_samplesNumber", samples);
+            mat.SetFloat("_samplingFrequency", samplingFrequency);
+            mat.SetFloat("_targetFrameRate", samplingFrequency / samples);
             mat.SetFloat("_fov", fov);
             mat.SetInt("_NrAntennas", antennas);
             mat.SetInt("_ReceiverConfig", recv_config);

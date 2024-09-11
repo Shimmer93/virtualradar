@@ -94,8 +94,7 @@ def beamforming_naive_mixed_xyz_6843(azimuth_input, input_ranges, range_resoluti
         estimated_variance_azi = variance_estimation(num_out_azi, est_resolution, obj_dict_azi, total_power_azi)
         estimated_variance_ele = variance_estimation(num_out_ele, est_resolution, obj_dict_ele, total_power_ele)
 
-        max_theta = np.array(max_theta)
-        max_phi = np.array(max_phi)        
+        # Finish this part       
 
     phi = np.array(output_e_angles)
     theta = np.array(output_a_angles)
