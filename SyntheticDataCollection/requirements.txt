@@ -1,0 +1,8 @@
+setuptools==64.0.3
+numpy==1.19.0
+scipy
+matplotlib
+moviepy
+pyyaml
+scikit-learn
+openradar

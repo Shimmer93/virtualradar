@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 def vis_range_doppler_map(range_doppler_map, output_dir, frame_idx):
     # range_doppler_map: (num_range_bins, num_doppler_bins)
     map_vis = np.fft.fftshift(range_doppler_map, axes=1)
+    print(map_vis.shape)
     plt.imshow(map_vis, aspect='auto')
     plt.colorbar()
     plt.xlabel('Doppler bins')

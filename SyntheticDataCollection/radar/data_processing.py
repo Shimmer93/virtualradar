@@ -4,6 +4,7 @@ from mmwave.dsp.utils import Window
 from scipy.constants import c
 
 from utils.misc import dtype_det_2d_int
+from radar.angle_estimation import beamforming_naive_mixed_xyz_modified
 
 class RadarSignalProcessor:
     def __init__(self, 
@@ -37,7 +38,7 @@ class RadarSignalProcessor:
         self.framerate = self.num_chirps / self.dur_chirp
         self.lower_freq = self.center_freq - self.bandwidth / 2
         self.range_res = c / (2 * self.bandwidth) # Range resolution, unit: m
-        self.doppler_res = c * (1 / (self.num_chirps * self.dur_chirp)) / self.center_freq # Doppler speed resolution, unit: m/s
+        self.doppler_res = c / (2 * num_samples * num_tx * center_freq * self.dur_chirp)
 
         self.cfar_num_train = cfar_num_train
         self.cfar_num_guard = cfar_num_guard
@@ -59,15 +60,15 @@ class RadarSignalProcessor:
         doppler_input = dsp.range_processing(frame, window_type_1d=self.window_range)
 
         # Doppler processing
-        range_doppler_map, angle_input = dsp.doppler_processing(doppler_input, num_tx_antennas=self.num_tx, 
-                                                                clutter_removal_enabled=True, window_type_1d=self.window_doppler)
+        range_doppler_map, angle_input = dsp.doppler_processing(doppler_input, num_tx_antennas=self.num_tx, interleaved=True,
+                                                                clutter_removal_enabled=True, window_type_2d=self.window_doppler)
         range_doppler_map = range_doppler_map.astype(np.int64)
 
         # CFAR
         threshold_range, noise_level_range = np.apply_along_axis(dsp.ca_, 0, range_doppler_map, l_bound=self.cfar_l_bound_range, 
-                                                                 guard_len=self.cfar_num_guard, noise_len=self.cfar_num_train, threshold=self.cfar_threshold)
+                                                                 guard_len=self.cfar_num_guard, noise_len=self.cfar_num_train)
         thres_doppler, noise_level_doppler = np.apply_along_axis(dsp.ca_, 0, range_doppler_map.T, l_bound=self.cfar_l_bound_doppler, 
-                                                                 guard_len=self.cfar_num_guard, noise_len=self.cfar_num_train, threshold=self.cfar_threshold)
+                                                                 guard_len=self.cfar_num_guard, noise_len=self.cfar_num_train)
         thres_doppler, noise_level_doppler = thres_doppler.T, noise_level_doppler.T
 
         # Peak Processing
@@ -78,11 +79,15 @@ class RadarSignalProcessor:
         det_peak_values = range_doppler_map[det_peak_indices[:, 0], det_peak_indices[:, 1]]
         det_snr = det_peak_values - noise_level_range[det_peak_indices[:, 0], det_peak_indices[:, 1]]
 
-        det_2d_raw = np.zeros((det_peak_indices.shape[0],), dtype=dtype_det_2d_int(self.num_tx))
-        det_2d_raw['range_idx'] = det_peak_indices[:, 0].squeeze()
-        det_2d_raw['doppler_idx'] = det_peak_indices[:, 1].squeeze()
-        det_2d_raw['peak_val'] = det_peak_values.flatten()
-        det_2d_raw['snr'] = det_snr.flatten()
+        dtype_location = '(' + str(self.num_tx) + ',)<f4'
+        dtype_detObj2D = np.dtype({'names': ['rangeIdx', 'dopplerIdx', 'peakVal', 'location', 'SNR'],
+                                   'formats': ['<i4', '<i4', '<f4', dtype_location, '<f4']})
+        det_2d_raw = np.zeros((det_peak_indices.shape[0],), dtype=dtype_detObj2D)
+        # det_2d_raw = {}
+        det_2d_raw['rangeIdx'] = det_peak_indices[:, 0].squeeze()
+        det_2d_raw['dopplerIdx'] = det_peak_indices[:, 1].squeeze()
+        det_2d_raw['peakVal'] = det_peak_values.flatten()
+        det_2d_raw['SNR'] = det_snr.flatten()
 
         # Peak Pruning
         det_2d_raw = dsp.prune_to_peaks(det_2d_raw, range_doppler_map, self.num_chirps, reserve_neighbor=True)
@@ -92,15 +97,24 @@ class RadarSignalProcessor:
         det_2d = dsp.range_based_pruning(det_2d, self.snr_threshold, self.peak_val_threshold, self.num_samples, 0.5, self.range_res)
 
         # Angle Processing
-        angle_input = angle_input[det_2d['range_idx'], :, det_2d['doppler_idx']]
-        _, _, _, xyz_coords = dsp.beamforming_naive_mixed_xyz(angle_input, det_2d['range_idx'], self.range_res, 
-                                                                  num_vrx=self.num_rx * self.num_tx, method='Bartlett')
+        angle_input = angle_input[det_2d['rangeIdx'], :, det_2d['dopplerIdx']]
+        _, _, ranges, xyz_coords, nums_out = beamforming_naive_mixed_xyz_modified(angle_input, det_2d['rangeIdx'], self.range_res, 
+                                                                        num_vrx=self.num_rx * self.num_tx, method='Bartlett')
         
         # Add doppler speeds and intensities to pointcloud
-        doppler_speeds = self.doppler_res * det_2d['doppler_idx']
-        intensities = det_2d['peak_val']
+        doppler_speeds = []
+        intensities = []
+        for n, d, p in zip(nums_out, det_2d['dopplerIdx'], det_2d['peakVal']):
+            for _ in range(n):
+                doppler_speeds.append(self.doppler_res * d)
+                intensities.append(p)
+        doppler_speeds = np.array(doppler_speeds)
+        intensities = np.array(intensities)
+
+        # doppler_speeds = self.doppler_res * det_2d['dopplerIdx']
+        # intensities = det_2d['peakVal']
         pointcloud = np.concatenate([xyz_coords.T, doppler_speeds[:, None], intensities[:, None]], axis=1)
 
-        return pointcloud, range_doppler_map
+        return range_doppler_map, pointcloud
     
 

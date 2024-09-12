@@ -19,19 +19,22 @@
 # output_dir', type: str, default: 'ReceivedData', 
 
 # Sensor Parameters
-center_freq: 60.5e9
-bandwidth: 7.0e9
-num_chirps: 48 
-num_samples: 300 
-num_tx: 4
-num_rx: 3
+center_freq: 60.5e+9
+bandwidth: 7.0e+9
+num_chirps: 60 
+num_samples: 250 
+num_tx: 3
+num_rx: 4
 dist_antenna: 0.0025
-sample_freq: 1.5e5
+sample_freq: 1.5e+5
 antenna_type: 'ti_xwr1843'
 
 # CFAR Parameters
 cfar_num_train: 8
 cfar_num_guard: 4
-cfar_false_alarm_rate: 1e-6
+cfar_false_alarm_rate: 1.0e-6
 cfar_l_bound_range: 2.5
 cfar_l_bound_doppler: 2.5
+
+# Other Parameters
+use_window: true

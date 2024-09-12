@@ -1,0 +1,5 @@
+SyntheticDataCollection/data/*
+Temp/*
+Output/*
+play.ipynb
+*/__pychache__

@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import shutil
 import datetime
 import argparse
 
@@ -14,22 +15,23 @@ def main(args):
     data_list = []
     for tx in txs:
         data_tx_list = os.listdir(os.path.join(input_dir, tx))
-        data_tx_list = [np.load(data_tx) for data_tx in data_tx_list]
+        data_tx_list = [np.load(os.path.join(input_dir, tx, data_tx)) for data_tx in data_tx_list]
         data_tx = np.stack(data_tx_list, axis=0)
         data_list.append(data_tx)
-    data = np.sum(np.stack(data_list), axis=0)
+    data = np.stack(data_list, axis=2)
+    data = np.reshape(data, list(data.shape[:1]) + [-1] + list(data.shape[3:]))
 
     # Create save directory
     save_dir = input_dir.replace('raw', 'point_cloud')
     os.makedirs(save_dir, exist_ok=True)
 
     # Create temporary directory for visualization
-    temp_dir_rd = f'{input_dir}/temp_rd'
-    temp_dir_pc = f'{input_dir}/temp_pc'
-    if os.exists(temp_dir_rd):
-        os.removedirs(temp_dir_rd)
-    if os.exists(temp_dir_pc):
-        os.removedirs(temp_dir_pc)
+    temp_dir_rd = f'{save_dir}/temp_rd'
+    temp_dir_pc = f'{save_dir}/temp_pc'
+    if os.path.exists(temp_dir_rd):
+        shutil.rmtree(temp_dir_rd)
+    if os.path.exists(temp_dir_pc):
+        shutil.rmtree(temp_dir_pc)
     os.makedirs(temp_dir_rd)
     os.makedirs(temp_dir_pc)
 
@@ -60,10 +62,13 @@ def main(args):
     np.save(f'{save_dir}/point_cloud.npy', point_clouds)
 
     # Remove temporary directories
-    os.removedirs(temp_dir_rd)
-    os.removedirs(temp_dir_pc)
+    shutil.rmtree(temp_dir_rd)
+    shutil.rmtree(temp_dir_pc)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process radar data')
-    parser.add_argument('--input_dir', type=str, default='data/raw', help='Directory containing raw data')
+    parser.add_argument('--input_dir', type=str, default='data/test/raw', help='Directory containing raw data')
     parser.add_argument('--cfg_path', type=str, default='cfg/ti_xwr1843.yml', help='Path to configuration file')
+    args = parser.parse_args()
+
+    main(args)

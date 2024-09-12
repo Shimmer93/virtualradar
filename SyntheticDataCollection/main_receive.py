@@ -4,11 +4,14 @@ import datetime
 import argparse
 
 from utils.tcpip import TCPServer
-from utils.misc import real2IQ
+from utils.misc import real2IQ, read_cfg
 
 def main(args):
+    # Read config file
+    cfg = read_cfg(args.cfg_path, mode='namespace')
+
     # Create save directory
-    data_dir = os.path.joint(args.save_dir, args.run_name, 'raw', str(args.idx_tx))
+    data_dir = os.path.join(args.save_dir, args.run_name, 'raw', str(args.idx_tx))
     os.makedirs(data_dir, exist_ok=True)
 
     # Initialize TCP server
@@ -16,23 +19,23 @@ def main(args):
     tcp_server.start_server()
 
     # Initialize data cube
-    data_cube = np.zeros((args.num_chirps, args.num_rx, args.num_samples), dtype=np.complex64)
+    data_cube = np.zeros((cfg.num_chirps, cfg.num_rx, cfg.num_samples), dtype=np.complex64)
 
     # Receive data
     cur_length = 0
     idx_frame = 0
     while True:
-        data_slice = tcp_server.receive_data(args.num_chirps_per_chunk * args.num_samples * args.num_rx * 4)
+        data_slice = tcp_server.receive_data(args.num_chirps_per_chunk * cfg.num_samples * cfg.num_rx * 4)
         if data_slice is None:
             break
 
         data_slice = np.frombuffer(data_slice, dtype=np.float32)
-        data_slice = data_slice.reshape(args.num_chirps_per_chunk, args.num_samples, args.num_rx).transpose(0, 2, 1)
+        data_slice = data_slice.reshape(args.num_chirps_per_chunk, cfg.num_samples, cfg.num_rx).transpose(0, 2, 1)
         data_slice = real2IQ(data_slice)
         data_cube[cur_length:cur_length + args.num_chirps_per_chunk] = data_slice
 
         cur_length += args.num_chirps_per_chunk
-        if cur_length >= args.num_chirps:
+        if cur_length >= cfg.num_chirps:
             np.save(os.path.join(data_dir, f'data_{idx_frame:04d}.npy'), data_cube)
             cur_length = 0
             idx_frame += 1
@@ -40,6 +43,7 @@ def main(args):
             if args.total_frames > 0 and idx_frame >= args.total_frames:
                 break
 
+    # Close TCP server
     tcp_server.stop_server()
 
 if __name__ == '__main__':
