@@ -70,6 +70,11 @@ namespace RosSharp.RosBridgeClient
         [Tooltip("Bandwidth of the chirp")]
         public float bandwidth;
 
+        // total subframes
+        [Range(1, 2000)]
+        [Tooltip("Total number of subframes to capture")]
+        public int numTotalSubframes=60;
+
         // Radiation Pattern Mask of radar sensor
         [Tooltip("Radiation Pattern Weighting Texture(No texture means no pattern)")]
         public Texture RadiationPatternMask;
@@ -105,6 +110,8 @@ namespace RosSharp.RosBridgeClient
         private int width;                      // image width (in pixels)
         private int height;                     // image height (in pixels)
         private float[] t;                      // time vector
+        private int numCurrSubframes;           // number of current subframes
+        private float subframeRate;
    
         /* TCP/ROS related variables */
         internal Boolean socketReady = false;
@@ -125,6 +132,8 @@ namespace RosSharp.RosBridgeClient
         #region Called when script instance is being loaded 
         void Awake() // run before all other functions
         {
+            subframeRate = samplingFrequency / samples;
+
             if (optionselection == Option.Unity_to_ROS)
             {
                 rosConnector.gameObject.SetActive(true); // activate ROS connector
@@ -204,6 +213,7 @@ namespace RosSharp.RosBridgeClient
             lambda = c0 / centerFrequency;
             maxRange = c0 * samples / (4.0f * bandwidth);
             maxVelocity = lambda / (4.0f * Ts);
+            numCurrSubframes = 0;
 
             // create TCP client if TCP is set active, otherwise set up ROS publisher
             if (optionselection == Option.Unity_and_TCP)
@@ -276,7 +286,7 @@ namespace RosSharp.RosBridgeClient
             mat.SetInt("_chirpsNumber", chirps);
             mat.SetInt("_samplesNumber", samples);
             mat.SetFloat("_samplingFrequency", samplingFrequency);
-            mat.SetFloat("_targetFrameRate", samplingFrequency / samples);
+            mat.SetFloat("_SubframeRate", subframeRate);
             mat.SetFloat("_fov", fov);
             mat.SetInt("_NrAntennas", antennas);
             mat.SetInt("_ReceiverConfig", recv_config);
@@ -472,6 +482,11 @@ namespace RosSharp.RosBridgeClient
         #region Method is called once per frame
         void Update()
         {
+            if (numCurrSubframes == numTotalSubframes)
+            {
+                Application.Quit();
+            }
+
             chirps = savechirps;
             samples = savesamples;
 
@@ -515,6 +530,8 @@ namespace RosSharp.RosBridgeClient
             mat.SetVector("_ViewDir", new UnityEngine.Vector4(cam.transform.forward.x, cam.transform.forward.y, cam.transform.forward.z, 0)); // ViewDirection of sensor to shader                                                                                                                                     
             cam.fieldOfView = fov;
             GlasRenderer.transform.position = Camera.main.transform.position;
+
+            numCurrSubframes++;
         }
         #endregion
 
@@ -534,6 +551,13 @@ namespace RosSharp.RosBridgeClient
 
             gpuBuffer1 = null;
             gpuBuffer2 = null;
+        }
+        #endregion
+
+        #region helper funtions
+        public float GetSubframeRate()
+        {
+            return subframeRate;
         }
         #endregion
     }

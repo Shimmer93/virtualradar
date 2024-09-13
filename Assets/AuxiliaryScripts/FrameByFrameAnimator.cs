@@ -1,9 +1,9 @@
 using UnityEngine;
 using RosSharp.RosBridgeClient;
 
-public class FrameByFrameAnimation : MonoBehaviour
+public class FrameByFrameAnimator : MonoBehaviour
 {
-    public Animation animation;
+    public Animator animator;
     public string animationName;
     private int numCurrSubframes = 0; // The current frame time
 
@@ -15,18 +15,18 @@ public class FrameByFrameAnimation : MonoBehaviour
     {
         ssrcp = radar.GetComponent<ScreenSpaceRadarControlPlot>();
         subframeRate = ssrcp.GetSubframeRate();
-        UnityEngine.Debug.Log(subframeRate);
+        Debug.Log(subframeRate);
     }
 
     void Start()
     {
-        animation[animationName].speed = 0; // Stop automatic playback
+        animator.speed = 0;
     }
 
     void Update()
     {
         numCurrSubframes++;
-        animation[animationName].time = numCurrSubframes / subframeRate;
-        animation.Sample(); // Update the animation
+        animator.PlayInFixedTime(animationName, 0, numCurrSubframes / subframeRate);
+        animator.Update(0);
     }
 }

@@ -72,7 +72,7 @@
 			float _LowerChirpFrequency;						// chirp start frequency
 			float _BandwidthOfTheChirp;						// chirp bandwidth
 			float _samplingFrequency;						// sampling frequency
-			float _targetFrameRate;							// sampling frequency
+			float _SubframeRate;							// subframe rate
 			
 			RWStructuredBuffer<float2> _gpuBuffer1 : register(u1);	// GPU memory buffer 1 (used for communication between GPU and CPU) --> antenna 1 and 2
 			RWStructuredBuffer<float2> _gpuBuffer2 : register(u2);	// GPU memory buffer 2 (used for communication between GPU and CPU) --> antenna 3 and 4
@@ -175,7 +175,7 @@
 					distancetrans = 0.0f;
 				}
 				
-				float delta_t = 1.0f/600.0f; // frame to frame time
+				float delta_t = 1.0f / _SubframeRate; // frame to frame time
 				float velocity = (((depth - depthprev)  * _MaxDistance)) / delta_t; // velocity calculation (solid)	
 				float velocitytrans=velocitymaptrans; // velocity transparent
 
