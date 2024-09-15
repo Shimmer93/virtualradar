@@ -16,6 +16,7 @@ public class FrameByFrameAnimation : MonoBehaviour
         ssrcp = radar.GetComponent<ScreenSpaceRadarControlPlot>();
         subframeRate = ssrcp.GetSubframeRate();
         UnityEngine.Debug.Log(subframeRate);
+        subframeRate = 600.0f;
     }
 
     void Start()

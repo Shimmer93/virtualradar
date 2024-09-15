@@ -15,18 +15,19 @@ public class FrameByFrameAnimator : MonoBehaviour
     {
         ssrcp = radar.GetComponent<ScreenSpaceRadarControlPlot>();
         subframeRate = ssrcp.GetSubframeRate();
-        Debug.Log(subframeRate);
+        UnityEngine.Debug.Log(subframeRate);
+        subframeRate = 600.0f;
     }
 
     void Start()
     {
-        animator.speed = 0;
+        animator.speed = 0; // Stop automatic playback
     }
 
     void Update()
     {
         numCurrSubframes++;
-        animator.PlayInFixedTime(animationName, 0, numCurrSubframes / subframeRate);
-        animator.Update(0);
+        animator.Play(animationName, 0, numCurrSubframes / subframeRate); // Set the animation to the current frame
+        animator.Update(1 / subframeRate); // Update the animation
     }
 }
