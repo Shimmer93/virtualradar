@@ -2,6 +2,7 @@ import numpy as np
 import os
 import datetime
 import argparse
+import struct
 
 from utils.tcpip import TCPServer
 from utils.misc import real2IQ, read_cfg
@@ -10,13 +11,25 @@ def main(args):
     # Read config file
     cfg = read_cfg(args.cfg_path, mode='namespace')
 
-    # Create save directory
-    data_dir = os.path.join(args.save_dir, args.run_name, 'raw', str(args.idx_tx))
-    os.makedirs(data_dir, exist_ok=True)
-
     # Initialize TCP server
     tcp_server = TCPServer(args.host, args.port, verbose=args.verbose)
     tcp_server.start_server()
+
+    # Receive save directory, run name, and transmitter index from the client
+    save_dir = tcp_server.receive_data_flexible().decode('utf-8')
+    run_name = tcp_server.receive_data_flexible().decode('utf-8')
+    idx_tx = int.from_bytes(tcp_server.receive_data(4), byteorder='little')
+    # idx_tx is a 4-byte integer
+
+    print(idx_tx)
+    print(save_dir)
+    print(run_name)
+
+    # Create directory to save data
+    data_dir = os.path.join(save_dir.replace('/', os.sep), run_name, 'raw', str(idx_tx))
+    if args.verbose:
+        print(f'Saving data to {data_dir}')
+    os.makedirs(data_dir, exist_ok=True)
 
     # Initialize data cube
     data_cube = np.zeros((cfg.num_chirps, cfg.num_rx, cfg.num_samples), dtype=np.complex64)

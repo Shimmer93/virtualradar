@@ -54,13 +54,23 @@ namespace RosSharp.RosBridgeClient
 
         // Number of receiveing antenna elements
         [Range(1, 4)]
-        [Tooltip("Number of Receiver Antennas")]
-        public int antennas = 1;
+        [Tooltip("Number of Receiver antennas")]
+        public int numRx = 1;
 
         // radar sampling frequency
         [Range(10000.0f, 10000000.0f)]
         [Tooltip("Sampling Frequency of the radar chip")]
         public float samplingFrequency = 2000000.0f;
+
+        // total subframes
+        [Range(1, 2000)]
+        [Tooltip("Total number of subframes to capture")]
+        public int numTotalSubframes=60;
+
+        // Index of transmitter antenna
+        [Range(0, 3)]
+        [Tooltip("Index of the transmitter antenna")]
+        public int idxTx = 0;
 
         // lower chirp frequency (start frequency)
         [Tooltip("Lower chirp frequency")]
@@ -70,10 +80,11 @@ namespace RosSharp.RosBridgeClient
         [Tooltip("Bandwidth of the chirp")]
         public float bandwidth;
 
-        // total subframes
-        [Range(1, 2000)]
-        [Tooltip("Total number of subframes to capture")]
-        public int numTotalSubframes=60;
+        [Tooltip("Save directory")]
+        public string saveDir = "SyntheticDataCollection/data";
+        
+        [Tooltip("Name of the run")]
+        public string runName;
 
         // Radiation Pattern Mask of radar sensor
         [Tooltip("Radiation Pattern Weighting Texture(No texture means no pattern)")]
@@ -110,17 +121,19 @@ namespace RosSharp.RosBridgeClient
         private int width;                      // image width (in pixels)
         private int height;                     // image height (in pixels)
         private float[] t;                      // time vector
-        private int numCurrSubframes;           // number of current subframes
+        private int numCurrSubframes = 0;           // number of current subframes
         private float subframeRate;
    
         /* TCP/ROS related variables */
+        [Tooltip("Host IP address")]
+        public String Host = "localhost";      // IP address of the host
+        [Tooltip("Port number")]
+        public Int32 Port = 55000;             // TCP port number
         internal Boolean socketReady = false;
         private TcpClient mySocket;             // socket for TCP connection
         private NetworkStream theStream;
         private StreamWriter theWriter;         // write stream
         private StreamReader theReader;         // read stream
-        private String Host = "localhost";      // 
-        private Int32 Port = 55000;             // TCP port number
         private float[] senddataarray;          // data array for transmission
         private string distancestring;          // distance string for OnlyUnity simulation
         private string velocitystring;          // velocity string for OnlyUnity simulation
@@ -133,6 +146,7 @@ namespace RosSharp.RosBridgeClient
         void Awake() // run before all other functions
         {
             subframeRate = samplingFrequency / samples;
+
 
             if (optionselection == Option.Unity_to_ROS)
             {
@@ -213,7 +227,6 @@ namespace RosSharp.RosBridgeClient
             lambda = c0 / centerFrequency;
             maxRange = c0 * samples / (4.0f * bandwidth);
             maxVelocity = lambda / (4.0f * Ts);
-            numCurrSubframes = 0;
 
             // create TCP client if TCP is set active, otherwise set up ROS publisher
             if (optionselection == Option.Unity_and_TCP)
@@ -222,6 +235,16 @@ namespace RosSharp.RosBridgeClient
                 mySocket = new TcpClient(Host, Port); // create TCP client object
                 theStream = mySocket.GetStream();
                 socketReady = true;
+
+                var saveDirBuffer = System.Text.Encoding.UTF8.GetBytes(saveDir); // convert string to byte array
+                SendDataWithFlexibleSize(mySocket.GetStream(), saveDirBuffer); // write byte array to TCP stream
+                
+                var runNameBuffer = System.Text.Encoding.UTF8.GetBytes(runName); // convert string to byte array
+                SendDataWithFlexibleSize(mySocket.GetStream(), runNameBuffer); // write byte array to TCP stream
+
+                var idxTxBuffer = System.BitConverter.GetBytes(idxTx); // convert int to byte array
+                mySocket.GetStream().Write(idxTxBuffer, 0, idxTxBuffer.Length); // write byte array to TCP stream
+
             }
             else if (optionselection == Option.Unity_to_ROS)
             {
@@ -236,7 +259,7 @@ namespace RosSharp.RosBridgeClient
         #region Radar render pipeline configuration and initialization
         void OnRenderImage(RenderTexture source, RenderTexture destination)
         {
-            if (antennas <= 2)
+            if (numRx <= 2)
             {
                 if (gpuBuffer1 == null)
                 {
@@ -267,7 +290,7 @@ namespace RosSharp.RosBridgeClient
                 holdcurrentFrame = new RenderTexture(Screen.width, Screen.height, 24, RenderTextureFormat.ARGBFloat);   // create render texture for current depth frame
             }
 
-            if (antennas <= 2)
+            if (numRx <= 2)
             {
                 Graphics.SetRandomWriteTarget(1, gpuBuffer1);
                 mat.SetBuffer("_gpuBuffer1", gpuBuffer1);
@@ -286,9 +309,9 @@ namespace RosSharp.RosBridgeClient
             mat.SetInt("_chirpsNumber", chirps);
             mat.SetInt("_samplesNumber", samples);
             mat.SetFloat("_samplingFrequency", samplingFrequency);
-            mat.SetFloat("_SubframeRate", subframeRate);
+            mat.SetFloat("_SubframeRate", samplingFrequency / samples);
             mat.SetFloat("_fov", fov);
-            mat.SetInt("_NrAntennas", antennas);
+            mat.SetInt("_NrAntennas", numRx);
             mat.SetInt("_ReceiverConfig", recv_config);
             mat.SetFloat("_ChirpRate", K);
             mat.SetFloat("_LowerChirpFrequency", lowerFrequency);
@@ -310,7 +333,7 @@ namespace RosSharp.RosBridgeClient
                 vec1 = new UnityEngine.Vector2[cam.pixelWidth * cam.pixelHeight * samples * chirps];
                 vec2 = new UnityEngine.Vector2[cam.pixelWidth * cam.pixelHeight * samples * chirps];
 
-                if (antennas <= 2)
+                if (numRx <= 2)
                 {
                     gpuBuffer1.GetData(vec1);              // read data from GPU memory
                 }
@@ -350,21 +373,21 @@ namespace RosSharp.RosBridgeClient
                     {
                         for (int h = 0; h < height; h++)
                         {
-                            if (antennas == 1)
+                            if (numRx == 1)
                             {
                                 data1[a + samples * c].x += vec1[w + width * h + width * height * a + width * height * samples * c].x; // sum of the image data element and 4d to 2d (antenna 1)
                                 data1[a + samples * c].y += 0.0f; //  vec1[w + width * h + width * height * a + width * height * samples * c].y;
                                 data2[a + samples * c].x += 0.0f;
                                 data2[a + samples * c].y += 0.0f;
                             }
-                            else if (antennas == 2)
+                            else if (numRx == 2)
                             {
                                 data1[a + samples * c].x += vec1[w + width * h + width * height * a + width * height * samples * c].x; // sum of the image data element and 4d to 2d (antenna 1)
                                 data1[a + samples * c].y += vec1[w + width * h + width * height * a + width * height * samples * c].y; // sum of the image data element and 4d to 2d (antenna 2)    
                                 data2[a + samples * c].x += 0.0f;
                                 data2[a + samples * c].y += 0.0f;
                             }
-                            else if (antennas == 3)
+                            else if (numRx == 3)
                             {
                                 data1[a + samples * c].x += vec1[w + width * h + width * height * a + width * height * samples * c].x; // sum of the image data element and 4d to 2d (antenna 1)
                                 data1[a + samples * c].y += vec1[w + width * h + width * height * a + width * height * samples * c].y; // sum of the image data element and 4d to 2d (antenna 2) 
@@ -392,16 +415,16 @@ namespace RosSharp.RosBridgeClient
 
             // unwrap raw data in a 1D vector containing both receiver signals sendarray = [Rx1, Rx2]
 
-            senddataarray = new float[data1.Length * antennas];
+            senddataarray = new float[data1.Length * numRx];
 
-            if (antennas == 1)
+            if (numRx == 1)
             {
                 for (int i = 0; i < senddataarray.Length; i++)
                 {
                     senddataarray[i] = data1[i].x;
                 }
             }
-            else if (antennas == 2)
+            else if (numRx == 2)
             {
                 for (int i = 0; i < senddataarray.Length; i++)
                 {
@@ -415,7 +438,7 @@ namespace RosSharp.RosBridgeClient
                     }
                 }
             }
-            else if (antennas == 3)
+            else if (numRx == 3)
             {
                 for (int i = 0; i < senddataarray.Length; i++)
                 {
@@ -500,7 +523,7 @@ namespace RosSharp.RosBridgeClient
                 }
                 else if (optionselection == Option.Unity_to_ROS)
                 {
-                    floatpup.messageData = new float[data1.Length * antennas]; // 2D-Vector to 1D float array (needed for tcp data transfer)
+                    floatpup.messageData = new float[data1.Length * numRx]; // 2D-Vector to 1D float array (needed for tcp data transfer)
                     for (int i = 0; i < senddataarray.Length; i++)
                     {
                         floatpup.messageData[i] = senddataarray[i];
@@ -557,8 +580,28 @@ namespace RosSharp.RosBridgeClient
         #region helper funtions
         public float GetSubframeRate()
         {
-            return subframeRate;
+            return samplingFrequency / samples;
+        }
+
+        public string GetDataDir()
+        {
+            return saveDir + "/" + runName;
+        }
+
+        public int GetIdxTx()
+        {
+            return idxTx;
         }
         #endregion
+
+        private void SendDataWithFlexibleSize(NetworkStream stream, byte[] data)
+        {
+            // First, send the size of the data
+            var dataSize = BitConverter.GetBytes(data.Length);
+            stream.Write(dataSize, 0, dataSize.Length);
+
+            // Then, send the data itself
+            stream.Write(data, 0, data.Length);
+        }
     }
 }

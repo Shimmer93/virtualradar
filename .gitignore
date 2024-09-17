@@ -2,4 +2,4 @@ SyntheticDataCollection/data/*
 Temp/*
 Output/*
 play.ipynb
-*/__pychache__
+__pycache__/
