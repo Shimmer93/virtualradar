@@ -15,7 +15,7 @@ def main(args):
     os.makedirs(data_dir, exist_ok=True)
 
     # Initialize TCP server
-    tcp_server = TCPServer(args.host, args.port)
+    tcp_server = TCPServer(args.host, args.port, verbose=args.verbose)
     tcp_server.start_server()
 
     # Initialize data cube
@@ -56,6 +56,7 @@ if __name__ == '__main__':
     parser.add_argument('--idx_tx', type=int, default=0, help='Index of the transmitter')
     parser.add_argument('--save_dir', type=str, default='data', help='Directory to save data')
     parser.add_argument('--run_name', type=str, default='test', help='Name of this run')
+    parser.add_argument('--verbose', action='store_true', help='Print debug messages')
     args = parser.parse_args()
 
     main(args)
