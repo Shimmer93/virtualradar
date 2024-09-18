@@ -81,7 +81,7 @@ namespace RosSharp.RosBridgeClient
         public float bandwidth;
 
         [Tooltip("Save directory")]
-        public string saveDir = "SyntheticDataCollection/data";
+        public string saveDir = "data";
         
         [Tooltip("Name of the run")]
         public string runName;
@@ -244,6 +244,12 @@ namespace RosSharp.RosBridgeClient
 
                 var idxTxBuffer = System.BitConverter.GetBytes(idxTx); // convert int to byte array
                 mySocket.GetStream().Write(idxTxBuffer, 0, idxTxBuffer.Length); // write byte array to TCP stream
+
+                var numTotalSubframesBuffer = System.BitConverter.GetBytes(numTotalSubframes); // convert int to byte array
+                mySocket.GetStream().Write(numTotalSubframesBuffer, 0, numTotalSubframesBuffer.Length); // write byte array to TCP stream
+
+                var numChirpsBuffer = System.BitConverter.GetBytes(chirps); // convert int to byte array
+                mySocket.GetStream().Write(numChirpsBuffer, 0, numChirpsBuffer.Length); // write byte array to TCP stream
 
             }
             else if (optionselection == Option.Unity_to_ROS)
@@ -507,7 +513,12 @@ namespace RosSharp.RosBridgeClient
         {
             if (numCurrSubframes == numTotalSubframes)
             {
+                UnityEngine.Debug.Log("Simulation finished");
+                #if UNITY_EDITOR
+                UnityEditor.EditorApplication.isPlaying = false;
+                #else
                 Application.Quit();
+                #endif
             }
 
             chirps = savechirps;
@@ -585,7 +596,7 @@ namespace RosSharp.RosBridgeClient
 
         public string GetDataDir()
         {
-            return saveDir + "/" + runName;
+            return "SyntheticDataCollection/" + saveDir + "/" + runName;
         }
 
         public int GetIdxTx()

@@ -24,13 +24,10 @@ public class AnimatedHumanProcessing : MonoBehaviour
     {
         ssrcp = radar.GetComponent<ScreenSpaceRadarControlPlot>();
         subframeRate = ssrcp.GetSubframeRate();
-        keypointDir = ssrcp.GetDataDir() + "/keypoint";
+        keypointDir = ssrcp.GetDataDir() + "/keypoints";
         idxTx = ssrcp.GetIdxTx();
-        Debug.Log(subframeRate);
-        Debug.Log(keypointDir);
-        Debug.Log(idxTx);
+
         Directory.CreateDirectory(keypointDir);
-        subframeRate = 600.0f;
     }
 
     void Start()
@@ -57,8 +54,6 @@ public class AnimatedHumanProcessing : MonoBehaviour
                 }
             }
         }
-
-        Debug.Log(boneTransforms.Count);
     }
 
     void Update()
@@ -74,7 +69,6 @@ public class AnimatedHumanProcessing : MonoBehaviour
 
         using (StreamWriter writer = new StreamWriter(keypointDir + "/keypoints.csv", true))
         {
-            Debug.Log(boneTransforms.Count);
             // Record the positions of the bones each frame
             foreach (Transform boneTransform in boneTransforms)
             {

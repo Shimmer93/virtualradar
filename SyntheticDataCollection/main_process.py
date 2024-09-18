@@ -1,7 +1,6 @@
 import numpy as np
 import os
 import shutil
-import datetime
 import argparse
 
 from radar.data_processing import RadarSignalProcessor
@@ -22,7 +21,7 @@ def main(args):
     data = np.reshape(data, list(data.shape[:1]) + [-1] + list(data.shape[3:]))
 
     # Create save directory
-    save_dir = input_dir.replace('raw', 'point_cloud')
+    save_dir = input_dir.replace('raw_data', 'point_clouds')
     os.makedirs(save_dir, exist_ok=True)
 
     # Create temporary directory for visualization
@@ -56,10 +55,10 @@ def main(args):
 
     # Make video
     make_video(temp_dir_rd, f'{save_dir}/range_doppler.mp4')
-    make_video(temp_dir_pc, f'{save_dir}/point_cloud.mp4')
+    make_video(temp_dir_pc, f'{save_dir}/point_clouds.mp4')
 
     # Save point clouds
-    np.save(f'{save_dir}/point_cloud.npy', point_clouds)
+    np.save(f'{save_dir}/point_clouds.npy', point_clouds)
 
     # Remove temporary directories
     shutil.rmtree(temp_dir_rd)
