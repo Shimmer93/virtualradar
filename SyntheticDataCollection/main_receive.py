@@ -1,8 +1,6 @@
 import numpy as np
 import os
-import datetime
 import argparse
-import struct
 
 from utils.tcpip import TCPServer
 from utils.misc import real2IQ, read_cfg
@@ -38,11 +36,11 @@ def main(args):
     while True:
         data_slice = tcp_server.receive_data(num_chirps_per_chunk * cfg.num_samples * cfg.num_rx * 4)
 
-        assert len(data_slice) == num_chirps_per_chunk * cfg.num_samples * cfg.num_rx * 4, 'Data length mismatch'
         if data_slice is None or len(data_slice) == 0:
             if args.verbose:
                 print('No more data received')
             break
+        assert len(data_slice) == num_chirps_per_chunk * cfg.num_samples * cfg.num_rx * 4, 'Data length mismatch'
 
         data_slice = np.frombuffer(data_slice, dtype=np.float32)
         data_slice = data_slice.reshape(num_chirps_per_chunk, cfg.num_samples, cfg.num_rx).transpose(0, 2, 1)
@@ -65,10 +63,10 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Receive radar data')
-    parser.add_argument('--host', type=str, default='localhost', help='Host IP address')
-    parser.add_argument('--port', type=int, default=55000, help='Port number')
-    parser.add_argument('--cfg_path', type=str, default='cfg/ti_xwr1843.yml', help='Path to configuration file')
-    parser.add_argument('--verbose', action='store_true', help='Print debug messages')
+    parser.add_argument('-h', '--host', type=str, default='localhost', help='Host IP address')
+    parser.add_argument('-p', '--port', type=int, default=55000, help='Port number')
+    parser.add_argument('-c', '--cfg_path', type=str, default='cfg/ti_xwr1843.yml', help='Path to configuration file')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Print debug messages')
     args = parser.parse_args()
 
     main(args)

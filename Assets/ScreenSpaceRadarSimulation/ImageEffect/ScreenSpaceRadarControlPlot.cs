@@ -511,7 +511,7 @@ namespace RosSharp.RosBridgeClient
         #region Method is called once per frame
         void Update()
         {
-            if (numCurrSubframes == numTotalSubframes)
+            if (numCurrSubframes > numTotalSubframes)
             {
                 UnityEngine.Debug.Log("Simulation finished");
                 #if UNITY_EDITOR

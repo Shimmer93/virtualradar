@@ -66,8 +66,8 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process radar data')
-    parser.add_argument('--input_dir', type=str, default='data/test/raw', help='Directory containing raw data')
-    parser.add_argument('--cfg_path', type=str, default='cfg/ti_xwr1843.yml', help='Path to configuration file')
+    parser.add_argument('-i', '--input_dir', type=str, default='data/test/raw_data', help='Directory containing raw data')
+    parser.add_argument('-c', '--cfg_path', type=str, default='cfg/ti_xwr1843.yml', help='Path to configuration file')
     args = parser.parse_args()
 
     main(args)

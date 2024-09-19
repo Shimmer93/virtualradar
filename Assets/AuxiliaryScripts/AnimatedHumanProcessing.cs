@@ -7,7 +7,6 @@ public class AnimatedHumanProcessing : MonoBehaviour
 {
     // Animator related variables
     public Animator animator;
-    public string animationName;
     private int numCurrSubframes = 0; // The current frame time
 
     // Radar related variables
@@ -38,6 +37,7 @@ public class AnimatedHumanProcessing : MonoBehaviour
         {
             return;
         }
+
         // Initialize the list of bone transforms
         boneTransforms = new List<Transform>();
 
@@ -46,6 +46,11 @@ public class AnimatedHumanProcessing : MonoBehaviour
         {
             foreach (HumanBodyBones bone in System.Enum.GetValues(typeof(HumanBodyBones)))
             {
+                if (bone == HumanBodyBones.LastBone)
+                {
+                    continue;
+                }
+                
                 Transform boneTransform = animator.GetBoneTransform(bone);
                 if (boneTransform != null)
                 {
@@ -59,8 +64,11 @@ public class AnimatedHumanProcessing : MonoBehaviour
     void Update()
     {
         numCurrSubframes++;
-        animator.Play(animationName, 0, numCurrSubframes / subframeRate); // Set the animation to the current frame
-        animator.Update(1 / subframeRate); // Update the animation
+        foreach (AnimationClip clip in animator.runtimeAnimatorController.animationClips)
+        {
+            animator.Play(clip.name, 0, numCurrSubframes / subframeRate); // Set the animation to the current frame
+            animator.Update(1 / subframeRate); // Update the animation
+        }
 
         if (idxTx != 0)
         {
