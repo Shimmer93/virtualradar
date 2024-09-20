@@ -6,6 +6,7 @@ from utils.tcpip import TCPServer
 from utils.misc import real2IQ, read_cfg
 
 def main(args):
+    print('Start at port', args.port)
     # Read config file
     cfg = read_cfg(args.cfg_path, mode='namespace')
 
@@ -59,11 +60,11 @@ def main(args):
                 break
 
     # Close TCP server
-    tcp_server.stop_server()
+    tcp_server.close_server()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Receive radar data')
-    parser.add_argument('-h', '--host', type=str, default='localhost', help='Host IP address')
+    parser.add_argument('-a', '--host', type=str, default='localhost', help='Host IP address')
     parser.add_argument('-p', '--port', type=int, default=55000, help='Port number')
     parser.add_argument('-c', '--cfg_path', type=str, default='cfg/ti_xwr1843.yml', help='Path to configuration file')
     parser.add_argument('-v', '--verbose', action='store_true', help='Print debug messages')

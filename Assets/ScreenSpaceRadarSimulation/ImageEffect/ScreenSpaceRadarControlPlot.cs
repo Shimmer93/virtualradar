@@ -72,6 +72,14 @@ namespace RosSharp.RosBridgeClient
         [Tooltip("Index of the transmitter antenna")]
         public int idxTx = 0;
 
+        public enum MIMOType {ShortLong, LShaped, Rectangular};
+        [Tooltip("MIMO antenna arrangement type")]
+        public MIMOType mIMOType;
+
+        [Range(-0.000001f, 0.01f)]
+        [Tooltip("Antenna distance parameter lambda")]
+        public float antennaLambda = 0.005f;
+
         // lower chirp frequency (start frequency)
         [Tooltip("Lower chirp frequency")]
         public float lowerFrequency;
@@ -227,6 +235,14 @@ namespace RosSharp.RosBridgeClient
             lambda = c0 / centerFrequency;
             maxRange = c0 * samples / (4.0f * bandwidth);
             maxVelocity = lambda / (4.0f * Ts);
+
+            if (antennaLambda <= 0)
+            {
+                antennaLambda = lambda;
+            }
+
+            UnityEngine.Vector3 txPosShift = GetTxPositions(mIMOType)[idxTx];
+            cam.transform.position = cam.transform.position + txPosShift * antennaLambda;
 
             // create TCP client if TCP is set active, otherwise set up ROS publisher
             if (optionselection == Option.Unity_and_TCP)
@@ -613,6 +629,37 @@ namespace RosSharp.RosBridgeClient
 
             // Then, send the data itself
             stream.Write(data, 0, data.Length);
+        }
+
+        private UnityEngine.Vector3[] GetTxPositions(MIMOType type)
+        {
+            switch (type)
+            {
+                case MIMOType.ShortLong:
+                    return new UnityEngine.Vector3[] {
+                        new UnityEngine.Vector3(0.0f, 0.0f, 0.0f),
+                        new UnityEngine.Vector3(2.0f, 0.0f, 0.0f),
+                        new UnityEngine.Vector3(1.0f, 0.5f, 0.0f)
+                    };
+                case MIMOType.LShaped:
+                    return new UnityEngine.Vector3[] {
+                        new UnityEngine.Vector3(0.0f, 0.0f, 0.0f),
+                        new UnityEngine.Vector3(1.0f, 0.0f, 0.0f),
+                        new UnityEngine.Vector3(1.0f, 1.0f, 0.0f)
+                    };
+                case MIMOType.Rectangular:
+                    return new UnityEngine.Vector3[] {
+                        new UnityEngine.Vector3(0.0f, 0.0f, 0.0f),
+                        new UnityEngine.Vector3(0.0f, 0.5f, 0.0f),
+                        new UnityEngine.Vector3(0.0f, 1.0f, 0.0f)
+                    };
+                default:
+                    return new UnityEngine.Vector3[] {
+                        new UnityEngine.Vector3(0.0f, 0.0f, 0.0f),
+                        new UnityEngine.Vector3(0.0f, 0.0f, 0.0f),
+                        new UnityEngine.Vector3(0.0f, 0.0f, 0.0f)
+                    };
+            }
         }
     }
 }
