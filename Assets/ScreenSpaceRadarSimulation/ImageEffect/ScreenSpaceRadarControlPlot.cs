@@ -612,7 +612,10 @@ namespace RosSharp.RosBridgeClient
 
         public string GetDataDir()
         {
-            return "SyntheticDataCollection/" + saveDir + "/" + runName;
+            string currDir = Directory.GetCurrentDirectory();
+            DirectoryInfo parentDir = Directory.GetParent(currDir);
+            DirectoryInfo grandParentDir = Directory.GetParent(parentDir.FullName);
+            return grandParentDir.FullName + "/SyntheticDataCollection/" + saveDir + "/" + runName;
         }
 
         public int GetIdxTx()

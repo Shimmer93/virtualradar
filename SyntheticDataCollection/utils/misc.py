@@ -3,8 +3,8 @@ from scipy.signal import hilbert
 import yaml
 from argparse import Namespace
 
-def real2IQ(real_data):
-    iq_data = hilbert(real_data, axis=-1)
+def real2IQ(real_data, axis=-1):
+    iq_data = hilbert(real_data, axis=axis)
     return iq_data
 
 def dtype_det_2d_int(num_tx):

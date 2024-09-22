@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 def vis_range_doppler_map(range_doppler_map, output_dir, frame_idx):
     # range_doppler_map: (num_range_bins, num_doppler_bins)
     map_vis = np.fft.fftshift(range_doppler_map, axes=1)
-    print(map_vis.shape)
     plt.imshow(map_vis, aspect='auto')
     plt.colorbar()
     plt.xlabel('Doppler bins')
@@ -27,8 +26,11 @@ def vis_point_cloud(point_cloud, output_dir, frame_idx):
     fig.savefig(os.path.join(output_dir, f'frame_{frame_idx:04d}.png'))
     plt.clf()
     
-def make_video(images_dir, output_path, fps=30):
+def make_video(images_dir, output_path, fps=30, verbose=False):
     images = [img for img in os.listdir(images_dir) if img.endswith(".png")]
     images.sort()
     clip = ImageSequenceClip([os.path.join(images_dir, img) for img in images], fps=fps)
-    clip.write_videofile(output_path)
+    if verbose:
+        clip.write_videofile(output_path)
+    else:
+        clip.write_videofile(output_path, logger=None)

@@ -5,7 +5,7 @@ import argparse
 
 from radar.data_processing import RadarSignalProcessor
 from utils.vis import vis_range_doppler_map, vis_point_cloud, make_video
-from utils.misc import read_cfg
+from utils.misc import read_cfg, real2IQ
 
 def main(args):
     # Read data from input directory
@@ -18,7 +18,9 @@ def main(args):
         data_tx = np.stack(data_tx_list, axis=0)
         data_list.append(data_tx)
     data = np.stack(data_list, axis=2)
-    data = np.reshape(data, list(data.shape[:1]) + [-1] + list(data.shape[3:]))
+    data = np.reshape(data, list(data.shape[:1]) + [-1] + list(data.shape[3:])) # (num_frames, num_chirps, num_tx * num_rx, num_samples)
+    if args.complex:
+        data = real2IQ(data)
 
     # Create save directory
     save_dir = input_dir.replace('raw_data', 'point_clouds')
@@ -54,8 +56,8 @@ def main(args):
         idx_frame += 1
 
     # Make video
-    make_video(temp_dir_rd, f'{save_dir}/range_doppler.mp4')
-    make_video(temp_dir_pc, f'{save_dir}/point_clouds.mp4')
+    make_video(temp_dir_rd, f'{save_dir}/range_doppler.mp4', verbose=args.verbose)
+    make_video(temp_dir_pc, f'{save_dir}/point_clouds.mp4', verbose=args.verbose)
 
     # Save point clouds
     np.save(f'{save_dir}/point_clouds.npy', point_clouds)
@@ -68,6 +70,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process radar data')
     parser.add_argument('-i', '--input_dir', type=str, default='data/test/raw_data', help='Directory containing raw data')
     parser.add_argument('-c', '--cfg_path', type=str, default='cfg/ti_xwr1843.yml', help='Path to configuration file')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Print debug messages')
+    parser.add_argument('--complex', action='store_true', help='Use complex data')
     args = parser.parse_args()
 
     main(args)

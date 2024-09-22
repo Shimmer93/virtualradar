@@ -3,7 +3,7 @@ import os
 import argparse
 
 from utils.tcpip import TCPServer
-from utils.misc import real2IQ, read_cfg
+from utils.misc import read_cfg
 
 def main(args):
     print('Start at port', args.port)
@@ -29,7 +29,7 @@ def main(args):
     os.makedirs(data_dir, exist_ok=True)
 
     # Initialize data cube
-    data_cube = np.zeros((cfg.num_chirps, cfg.num_rx, cfg.num_samples), dtype=np.complex64)
+    data_cube = np.zeros((cfg.num_chirps, cfg.num_rx, cfg.num_samples), dtype=np.float32)
 
     # Receive data
     cur_length = 0
@@ -45,7 +45,6 @@ def main(args):
 
         data_slice = np.frombuffer(data_slice, dtype=np.float32)
         data_slice = data_slice.reshape(num_chirps_per_chunk, cfg.num_samples, cfg.num_rx).transpose(0, 2, 1)
-        data_slice = real2IQ(data_slice)
         data_cube[cur_length:cur_length + num_chirps_per_chunk] = data_slice
 
         cur_length += num_chirps_per_chunk
