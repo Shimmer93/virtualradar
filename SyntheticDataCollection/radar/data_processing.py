@@ -3,7 +3,6 @@ import mmwave.dsp as dsp
 from mmwave.dsp.utils import Window
 from scipy.constants import c
 
-from utils.misc import dtype_det_2d_int
 from radar.angle_estimation import beamforming_naive_mixed_xyz_modified
 
 class RadarSignalProcessor:
@@ -60,19 +59,19 @@ class RadarSignalProcessor:
         doppler_input = dsp.range_processing(frame, window_type_1d=self.window_range)
 
         # Doppler processing
-        range_doppler_map, angle_input = dsp.doppler_processing(doppler_input, num_tx_antennas=self.num_tx, interleaved=True,
-                                                                clutter_removal_enabled=True, window_type_2d=self.window_doppler)
+        range_doppler_map, angle_input = dsp.doppler_processing(doppler_input, num_tx_antennas=self.num_tx, interleaved=False,
+                                                                clutter_removal_enabled=False, window_type_2d=self.window_doppler) # clutter_removal may cause errors
         range_doppler_map = range_doppler_map.astype(np.int64)
 
         # CFAR
-        threshold_range, noise_level_range = np.apply_along_axis(dsp.ca_, 0, range_doppler_map, l_bound=self.cfar_l_bound_range, 
-                                                                 guard_len=self.cfar_num_guard, noise_len=self.cfar_num_train)
+        thres_range, noise_level_range = np.apply_along_axis(dsp.ca_, 0, range_doppler_map, l_bound=self.cfar_l_bound_range, 
+                                                             guard_len=self.cfar_num_guard, noise_len=self.cfar_num_train)
         thres_doppler, noise_level_doppler = np.apply_along_axis(dsp.ca_, 0, range_doppler_map.T, l_bound=self.cfar_l_bound_doppler, 
                                                                  guard_len=self.cfar_num_guard, noise_len=self.cfar_num_train)
         thres_doppler, noise_level_doppler = thres_doppler.T, noise_level_doppler.T
 
         # Peak Processing
-        det_range_mask = (range_doppler_map > threshold_range)
+        det_range_mask = (range_doppler_map > thres_range)
         det_doppler_mask = (range_doppler_map > thres_doppler)
         det_mask_full = (det_range_mask & det_doppler_mask)
         det_peak_indices = np.argwhere(det_mask_full == True)
